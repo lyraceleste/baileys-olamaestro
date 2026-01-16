@@ -37,7 +37,7 @@ async function connectToWhatsApp() {
             }
             isConnected = false;
         } else if (connection === 'open') {
-            console.log('✅ WhatsApp conectado!');
+            console.log('✅ WhatsApp conectado com sucesso!');
             isConnected = true;
             qrCode = null;
         }
@@ -54,15 +54,17 @@ async function connectToWhatsApp() {
                     const payload = {
                         from: from,
                         message: text,
-                        timestamp: new Date().toISOString()
+                        timestamp: new Date().toISOString(),
+                        messageId: msg.key.id
                     };
                     
-                    console.log(`📩 ${from}: ${text}`);
+                    console.log('📩 Mensagem de ' + from + ': ' + text);
                     
                     try {
                         await axios.post(N8N_WEBHOOK, payload);
+                        console.log('✅ Enviado para n8n');
                     } catch (error) {
-                        console.error('Erro webhook:', error.message);
+                        console.error('❌ Erro webhook:', error.message);
                     }
                 }
             }
@@ -71,99 +73,74 @@ async function connectToWhatsApp() {
 }
 
 app.get('/', (req, res) => {
-    res.json({ service: 'Baileys OLAMAESTRO', status: isConnected ? 'connected' : 'disconnected' });
+    res.json({ 
+        service: 'Baileys WhatsApp API - OLAMAESTRO',
+        status: isConnected ? 'connected' : 'disconnected',
+        version: '1.0.0'
+    });
 });
 
 app.get('/qr', (req, res) => {
     if (qrCode) {
-        res.json({ qr: qrCode, status: 'scan_needed' });
+        res.json({ qr: qrCode, status: 'waiting_scan' });
     } else if (isConnected) {
-        res.json({ status: 'connected' });
+        res.json({ status: 'connected', message: 'WhatsApp já conectado' });
     } else {
-        res.json({ status: 'disconnected' });
+        res.json({ status: 'disconnected', message: 'Aguardando conexão' });
     }
 });
 
 app.get('/status', (req, res) => {
-    res.json({ connected: isConnected, timestamp: new Date().toISOString() });
+    res.json({ 
+        connected: isConnected,
+        hasQR: qrCode !== null,
+        timestamp: new Date().toISOString()
+    });
 });
 
 app.post('/send', async (req, res) => {
     const { number, message } = req.body;
     
+    if (!number || !message) {
+        return res.status(400).json({ error: 'Campos obrigatórios: number, message' });
+    }
+    
     if (!isConnected) {
-        return res.status(503).json({ error: 'WhatsApp desconectado' });
+        return res.status(503).json({ error: 'WhatsApp não conectado. Escaneie o QR em /qr' });
     }
     
     try {
-        const jid = number.includes('@') ? number : `${number}@s.whatsapp.net`;
+        const jid = number.includes('@') ? number : number + '@s.whatsapp.net';
         await sock.sendMessage(jid, { text: message });
-        res.json({ success: true });
+        res.json({ success: true, to: jid, message: 'Mensagem enviada' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-const PORT = 3000;
+app.post('/webhook', async (req, res) => {
+    const { to, message } = req.body;
+    
+    if (!to || !message) {
+        return res.status(400).json({ error: 'Campos obrigatórios: to, message' });
+    }
+    
+    if (!isConnected) {
+        return res.status(503).json({ error: 'WhatsApp não conectado' });
+    }
+    
+    try {
+        const jid = to.includes('@') ? to : to + '@s.whatsapp.net';
+        await sock.sendMessage(jid, { text: message });
+        res.json({ success: true, to: jid });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Baileys rodando porta ${PORT}`);
+    console.log('🚀 Baileys API rodando na porta ' + PORT);
+    console.log('📡 Webhook n8n: ' + N8N_WEBHOOK);
     connectToWhatsApp();
 });
-```
-
-4. **Commit**
-
----
-
-**Pronto! Repositório criado com 4 arquivos.**
-
----
-
-## 🔧 PASSO 3: DEPLOY NO COOLIFY (5min)
-
-### **No Coolify**:
-
-1. **+ New** → **Resource**
-2. Seleciona: **Public Repository**
-3. **Repository URL**: `https://github.com/SEU_USER/baileys-olamaestro`
-4. **Branch**: `main`
-5. **Build Pack**: Docker Compose
-6. **Network**: `coolify` (selecionar no dropdown)
-
----
-
-### **Configurações importantes**:
-
-**General**:
-- **Name**: `baileys-whatsapp`
-- **Port**: `3000` (Exposed Ports)
-
-**Domains** (opcional agora, pode fazer depois):
-- Add domain: `baileys.olamaestro.com`
-
-**Environment Variables**:
-- `N8N_WEBHOOK` = `http://n8n-lg4s0cw48w4g08gwk0w4o8g8:5678/webhook/baileys`
-
----
-
-### **Deploy**:
-
-1. Botão **Deploy** (canto superior direito)
-2. Aguardar build (2-3 min)
-3. Ver logs em tempo real
-
----
-
-## 📱 PASSO 4: VER QR CODE
-
-### **Opção A: Logs do Coolify**
-
-1. Coolify → Baileys → **Logs**
-2. Procurar texto grande ASCII (QR Code)
-3. Copiar todo o QR
-
-### **Opção B: API Endpoint**
-
-**Se configurou domínio**:
-```
-https://baileys.olamaestro.com/qr
