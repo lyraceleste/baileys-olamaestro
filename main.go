@@ -12,6 +12,8 @@ import (
     "go.mau.fi/whatsmeow"
     "go.mau.fi/whatsmeow/store/sqlstore"
     "go.mau.fi/whatsmeow/types"
+    "go.mau.fi/whatsmeow/types/events"
+    waProto "go.mau.fi/whatsmeow/binary/proto"
     waLog "go.mau.fi/whatsmeow/util/log"
     _ "github.com/mattn/go-sqlite3"
 )
