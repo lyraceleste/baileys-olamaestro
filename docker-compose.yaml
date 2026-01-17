@@ -1,18 +1,12 @@
-version: '3.8'
-
 services:
-  baileys:
+  whatsmeow:
     build: .
-    container_name: baileys-whatsapp
     ports:
       - "3000:3000"
     volumes:
-      - baileys-data:/app/data
-      - baileys-auth:/app/auth_info
+      - whatsmeow-data:/root
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - N8N_WEBHOOK=http://n8n-lg4s0cw48w4g08gwk0w4o8g8:5678/webhook/baileys
+      - N8N_WEBHOOK=http://n8n-lg4s0cw48w4g08gwk0w4o8g8:5678/webhook/whatsapp
     restart: unless-stopped
     networks:
       - coolify
@@ -22,5 +16,4 @@ networks:
     external: true
 
 volumes:
-  baileys-data:
-  baileys-auth:
+  whatsmeow-data:
