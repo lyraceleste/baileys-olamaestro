@@ -1,4 +1,4 @@
-module whatsmeow-olamaestro
+gomodule whatsmeow-olamaestro
 
 go 1.22
 
