@@ -1,14 +1,28 @@
-FROM node:20-alpine
+FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache git curl
+# Instalar dependências
+RUN apk add --no-cache git gcc musl-dev
 
-COPY package.json ./
-RUN npm install
+# Copiar código
+COPY go.mod go.sum ./
+RUN go mod download
 
-COPY server.js ./
+COPY . .
+
+# Build
+RUN CGO_ENABLED=1 go build -o whatsmeow-api .
+
+# Imagem final
+FROM alpine:latest
+
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /root/
+
+COPY --from=builder /app/whatsmeow-api .
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["./whatsmeow-api"]
